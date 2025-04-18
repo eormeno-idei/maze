@@ -19,7 +19,7 @@ class Game {
             this.maze.startPos.x,
             this.maze.startPos.y,
             this.cellSize - 4, // Slightly smaller than cell size
-            4, // Speed
+            1, // Velocidad reducida (antes era 4)
             this.maze,
             this // Referencia al juego para acceder a items
         );
