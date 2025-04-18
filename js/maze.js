@@ -6,6 +6,7 @@ class Maze {
         this.grid = [];
         this.startPos = { x: 0, y: 0 };
         this.endPos = { x: 0, y: 0 };
+        this.rooms = []; // Para almacenar las habitaciones creadas
         
         this.generateMaze();
     }
@@ -146,6 +147,9 @@ class Maze {
         // Número de habitaciones a crear
         const numRooms = Math.floor((cols * rows) / 100) + 2;
         
+        this.rooms = []; // Limpiar habitaciones previas
+        const doorLocations = []; // Para almacenar ubicaciones de puertas
+        
         for (let i = 0; i < numRooms; i++) {
             // Tamaño aleatorio de habitación (asegúrate de que no sean demasiado grandes)
             const roomWidth = Math.floor(Math.random() * 2) + 2;
@@ -155,6 +159,34 @@ class Maze {
             const roomX = Math.floor(Math.random() * (cols - roomWidth - 4)) + 2;
             const roomY = Math.floor(Math.random() * (rows - roomHeight - 4)) + 2;
             
+            // Verificar si esta habitación se superpone con alguna existente
+            let overlaps = false;
+            for (const room of this.rooms) {
+                if (
+                    roomX < room.x + room.width + 1 &&
+                    roomX + roomWidth + 1 > room.x &&
+                    roomY < room.y + room.height + 1 &&
+                    roomY + roomHeight + 1 > room.y
+                ) {
+                    overlaps = true;
+                    break;
+                }
+            }
+            
+            if (overlaps) {
+                // Si hay superposición, intentamos con otra habitación
+                continue;
+            }
+            
+            // Guardamos la habitación en nuestro arreglo
+            const newRoom = {
+                x: roomX,
+                y: roomY,
+                width: roomWidth,
+                height: roomHeight,
+                doorLocation: null
+            };
+            
             // Crea la habitación eliminando todas las paredes dentro del área
             for (let y = roomY; y < roomY + roomHeight; y++) {
                 for (let x = roomX; x < roomX + roomWidth; x++) {
@@ -162,24 +194,46 @@ class Maze {
                 }
             }
             
-            // Asegura que la habitación esté conectada al laberinto
+            // Asegura que la habitación esté conectada al laberinto con una puerta
             const side = Math.floor(Math.random() * 4); // 0: arriba, 1: derecha, 2: abajo, 3: izquierda
+            let doorX = 0, doorY = 0;
             
             switch (side) {
                 case 0: // Conectar por arriba
-                    this.grid[roomY-1][roomX + Math.floor(roomWidth/2)] = 0;
+                    doorX = roomX + Math.floor(roomWidth/2);
+                    doorY = roomY-1;
                     break;
                 case 1: // Conectar por la derecha
-                    this.grid[roomY + Math.floor(roomHeight/2)][roomX + roomWidth] = 0;
+                    doorX = roomX + roomWidth;
+                    doorY = roomY + Math.floor(roomHeight/2);
                     break;
                 case 2: // Conectar por abajo
-                    this.grid[roomY + roomHeight][roomX + Math.floor(roomWidth/2)] = 0;
+                    doorX = roomX + Math.floor(roomWidth/2);
+                    doorY = roomY + roomHeight;
                     break;
                 case 3: // Conectar por la izquierda
-                    this.grid[roomY + Math.floor(roomHeight/2)][roomX-1] = 0;
+                    doorX = roomX-1;
+                    doorY = roomY + Math.floor(roomHeight/2);
                     break;
             }
+            
+            // Asegurarse de que la ubicación de la puerta es válida
+            if (doorX > 0 && doorX < cols - 1 && doorY > 0 && doorY < rows - 1) {
+                // Creamos el pasillo desde la puerta hacia el exterior
+                this.grid[doorY][doorX] = 0;
+                
+                // Guardamos la ubicación de la puerta para el sistema de items
+                doorLocations.push({ x: doorX, y: doorY });
+                
+                // Almacenamos la ubicación de la puerta en la estructura de la habitación
+                newRoom.doorLocation = { x: doorX, y: doorY };
+                
+                // Añadimos la habitación a nuestro arreglo
+                this.rooms.push(newRoom);
+            }
         }
+        
+        return doorLocations;
     }
     
     findAccessibleEndPoint() {
@@ -332,5 +386,61 @@ class Maze {
         );
         
         return distance < this.cellSize / 2;
+    }
+    
+    // Método para comprobar si un punto está dentro de una habitación
+    isInRoom(x, y) {
+        for (const room of this.rooms) {
+            if (x >= room.x && x < room.x + room.width && 
+                y >= room.y && y < room.y + room.height) {
+                return room;
+            }
+        }
+        return null;
+    }
+    
+    // Método para obtener la puerta de una habitación
+    getRoomDoorLocation(roomX, roomY) {
+        const room = this.isInRoom(roomX, roomY);
+        return room ? room.doorLocation : null;
+    }
+    
+    // Check if path exists between two points
+    checkPathExists(startX, startY, endX, endY) {
+        // Simple BFS algorithm to check path existence
+        const visited = Array(this.grid.length).fill().map(() => Array(this.grid[0].length).fill(false));
+        const queue = [{x: startX, y: startY}];
+        visited[startY][startX] = true;
+        
+        const directions = [
+            {x: 0, y: -1},  // Up
+            {x: 1, y: 0},   // Right
+            {x: 0, y: 1},   // Down
+            {x: -1, y: 0}   // Left
+        ];
+        
+        while (queue.length > 0) {
+            const current = queue.shift();
+            
+            if (current.x === endX && current.y === endY) {
+                return true;
+            }
+            
+            for (const dir of directions) {
+                const newX = current.x + dir.x;
+                const newY = current.y + dir.y;
+                
+                if (newX >= 0 && newX < this.grid[0].length && 
+                    newY >= 0 && newY < this.grid.length && 
+                    !this.grid[newY][newX] && 
+                    !visited[newY][newX]) {
+                    
+                    visited[newY][newX] = true;
+                    queue.push({x: newX, y: newY});
+                }
+            }
+        }
+        
+        return false;
     }
 }
