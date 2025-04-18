@@ -1,0 +1,52 @@
+body {
+    margin: 0;
+    padding: 0;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    height: 100vh;
+    background-color: #333;
+    font-family: Arial, sans-serif;
+    overflow: hidden;
+}
+
+canvas {
+    display: block;
+    margin: auto;
+    background-color: #222;
+    border: 3px solid #666;
+    box-shadow: 0 0 20px rgba(0, 0, 0, 0.5);
+}
+
+.player {
+    position: absolute;
+    width: 40px;
+    height: 40px;
+    background-image: url('../assets/sprites/player.svg');
+    background-size: cover;
+}
+
+.wall {
+    position: absolute;
+    background-image: url('../assets/sprites/wall.svg');
+    background-size: cover;
+}
+
+.game-over {
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    font-size: 2em;
+    color: red;
+    display: none;
+}
+
+.game-container {
+    text-align: center;
+}
+
+h1 {
+    color: #fff;
+    margin-bottom: 20px;
+}
