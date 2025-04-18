@@ -1,17 +1,11 @@
 class Player {
-    constructor(x, y, size, speed, maze) {
-        this.x = x;
-        this.y = y;
-        this.size = size;
-        this.speed = speed;
+    constructor(maze, x, y) {
         this.maze = maze;
-        this.hasWon = false;
-        // Añadir dirección inicial (0: arriba, 1: derecha, 2: abajo, 3: izquierda)
-        this.direction = 0;
-        // Para controlar el movimiento entre celdas
-        this.isMoving = false;
-        this.targetX = x;
-        this.targetY = y;
+        this.x = x + 0.5; // Centro de la celda
+        this.y = y + 0.5;
+        this.direction = 0; // 0 = este, Math.PI/2 = sur
+        this.moveSpeed = 0.05;
+        this.rotateSpeed = 0.03;
     }
 
     draw(ctx) {
@@ -19,9 +13,9 @@ class Player {
         ctx.fillStyle = '#4D9DE0';
         ctx.beginPath();
         ctx.arc(
-            this.x + this.size / 2,
-            this.y + this.size / 2,
-            this.size / 2 - 2,
+            this.x * this.maze.cellSize,
+            this.y * this.maze.cellSize,
+            this.maze.cellSize / 2 - 2,
             0,
             Math.PI * 2
         );
@@ -29,35 +23,35 @@ class Player {
 
         // Posicionar los ojos según la dirección
         let eyeX1, eyeX2, eyeY1, eyeY2;
-        const centerX = this.x + this.size / 2;
-        const centerY = this.y + this.size / 2;
-        const eyeDistance = this.size / 4;
-        const eyeSize = this.size / 8;
+        const centerX = this.x * this.maze.cellSize;
+        const centerY = this.y * this.maze.cellSize;
+        const eyeDistance = this.maze.cellSize / 4;
+        const eyeSize = this.maze.cellSize / 8;
 
-        switch (this.direction) {
-            case 0: // Arriba
-                eyeX1 = this.x + this.size / 3;
-                eyeY1 = this.y + this.size / 3;
-                eyeX2 = this.x + (this.size * 2) / 3;
-                eyeY2 = this.y + this.size / 3;
+        switch (Math.round(this.direction / (Math.PI / 2)) % 4) {
+            case 0: // Este
+                eyeX1 = centerX + eyeDistance;
+                eyeY1 = centerY - eyeDistance / 2;
+                eyeX2 = centerX + eyeDistance;
+                eyeY2 = centerY + eyeDistance / 2;
                 break;
-            case 1: // Derecha
-                eyeX1 = this.x + (this.size * 2) / 3;
-                eyeY1 = this.y + this.size / 3;
-                eyeX2 = this.x + (this.size * 2) / 3;
-                eyeY2 = this.y + (this.size * 2) / 3;
+            case 1: // Sur
+                eyeX1 = centerX - eyeDistance / 2;
+                eyeY1 = centerY + eyeDistance;
+                eyeX2 = centerX + eyeDistance / 2;
+                eyeY2 = centerY + eyeDistance;
                 break;
-            case 2: // Abajo
-                eyeX1 = this.x + this.size / 3;
-                eyeY1 = this.y + (this.size * 2) / 3;
-                eyeX2 = this.x + (this.size * 2) / 3;
-                eyeY2 = this.y + (this.size * 2) / 3;
+            case 2: // Oeste
+                eyeX1 = centerX - eyeDistance;
+                eyeY1 = centerY - eyeDistance / 2;
+                eyeX2 = centerX - eyeDistance;
+                eyeY2 = centerY + eyeDistance / 2;
                 break;
-            case 3: // Izquierda
-                eyeX1 = this.x + this.size / 3;
-                eyeY1 = this.y + this.size / 3;
-                eyeX2 = this.x + this.size / 3;
-                eyeY2 = this.y + (this.size * 2) / 3;
+            case 3: // Norte
+                eyeX1 = centerX - eyeDistance / 2;
+                eyeY1 = centerY - eyeDistance;
+                eyeX2 = centerX + eyeDistance / 2;
+                eyeY2 = centerY - eyeDistance;
                 break;
         }
 
@@ -77,72 +71,71 @@ class Player {
     }
 
     update(controls) {
-        if (this.hasWon) return;
+        // Rotación
+        if (controls.left) {
+            this.direction -= this.rotateSpeed;
+        }
+        if (controls.right) {
+            this.direction += this.rotateSpeed;
+        }
 
-        // Si el jugador ya está en movimiento, continúa moviéndose hacia la celda objetivo
-        if (this.isMoving) {
-            const dx = this.targetX - this.x;
-            const dy = this.targetY - this.y;
-            const distance = Math.sqrt(dx * dx + dy * dy);
+        // Normalizar dirección
+        while (this.direction < 0) this.direction += Math.PI * 2;
+        while (this.direction >= Math.PI * 2) this.direction -= Math.PI * 2;
 
-            if (distance < this.speed) {
-                // El jugador ha llegado a la celda objetivo
-                this.x = this.targetX;
-                this.y = this.targetY;
-                this.isMoving = false;
-            } else {
-                // Continuar movimiento hacia la celda objetivo
-                this.x += (dx / distance) * this.speed;
-                this.y += (dy / distance) * this.speed;
+        // Movimiento adelante/atrás
+        if (controls.up || controls.down) {
+            const moveDir = controls.up ? 1 : -1;
+            const newX = this.x + Math.cos(this.direction) * this.moveSpeed * moveDir;
+            const newY = this.y + Math.sin(this.direction) * this.moveSpeed * moveDir;
+
+            // Comprobar colisión en X
+            if (this.canMoveTo(newX, this.y)) {
+                this.x = newX;
             }
-            return;
+
+            // Comprobar colisión en Y
+            if (this.canMoveTo(this.x, newY)) {
+                this.y = newY;
+            }
         }
 
-        // Si no está en movimiento, procesar las entradas del jugador
-        const cellSize = this.maze.cellSize;
-        
-        // Obtener la celda actual del jugador
-        const currentCellX = Math.floor(this.x / cellSize);
-        const currentCellY = Math.floor(this.y / cellSize);
-        
-        let nextCellX = currentCellX;
-        let nextCellY = currentCellY;
-        
-        if (controls.isPressed('ArrowUp')) {
-            nextCellY = currentCellY - 1;
-            this.direction = 0; // Arriba
-        }
-        else if (controls.isPressed('ArrowDown')) {
-            nextCellY = currentCellY + 1;
-            this.direction = 2; // Abajo
-        }
-        else if (controls.isPressed('ArrowLeft')) {
-            nextCellX = currentCellX - 1;
-            this.direction = 3; // Izquierda
-        }
-        else if (controls.isPressed('ArrowRight')) {
-            nextCellX = currentCellX + 1;
-            this.direction = 1; // Derecha
-        }
-        else {
-            return; // No se presionó ninguna tecla
-        }
-        
-        // Verificar si no hay pared en la celda destino
-        if (nextCellY >= 0 && nextCellY < this.maze.grid.length && 
-            nextCellX >= 0 && nextCellX < this.maze.grid[0].length && 
-            this.maze.grid[nextCellY][nextCellX] === 0) {
-            
-            // Calcular la posición central de la celda destino
-            this.targetX = nextCellX * cellSize + (cellSize - this.size) / 2;
-            this.targetY = nextCellY * cellSize + (cellSize - this.size) / 2;
-            this.isMoving = true;
-        }
+        // Movimiento lateral (strafe)
+        if (controls.strafeLeft || controls.strafeRight) {
+            const strafeDir = controls.strafeRight ? 1 : -1;
+            const strafeAngle = this.direction + Math.PI / 2 * strafeDir;
 
-        // Check if reached the end
-        if (this.maze.checkWin(this.x, this.y, this.size)) {
-            this.hasWon = true;
+            const newX = this.x + Math.cos(strafeAngle) * this.moveSpeed;
+            const newY = this.y + Math.sin(strafeAngle) * this.moveSpeed;
+
+            // Comprobar colisión en X
+            if (this.canMoveTo(newX, this.y)) {
+                this.x = newX;
+            }
+
+            // Comprobar colisión en Y
+            if (this.canMoveTo(this.x, newY)) {
+                this.y = newY;
+            }
         }
+    }
+
+    canMoveTo(x, y) {
+        // Añadir margen para evitar que el jugador se pegue demasiado a las paredes
+        const margin = 0.1;
+        const cellX = Math.floor(x);
+        const cellY = Math.floor(y);
+
+        // Comprobar las celdas circundantes
+        if (this.maze.getCell(cellX, cellY) === 1) return false;
+
+        // Comprobar colisiones con los bordes
+        if (x - cellX < margin && this.maze.getCell(cellX - 1, cellY) === 1) return false;
+        if (cellX + 1 - x < margin && this.maze.getCell(cellX + 1, cellY) === 1) return false;
+        if (y - cellY < margin && this.maze.getCell(cellX, cellY - 1) === 1) return false;
+        if (cellY + 1 - y < margin && this.maze.getCell(cellX, cellY + 1) === 1) return false;
+
+        return true;
     }
 }
 
