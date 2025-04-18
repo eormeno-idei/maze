@@ -6,7 +6,7 @@ class Game {
         this.height = this.canvas.height;
         
         // Tamaño de celda y nivel actual
-        this.cellSize = 40; // Size of each cell in the maze
+        this.cellSize = 20; // Size of each cell in the maze
         this.currentLevel = 1;
         
         // Calculate maze dimensions
