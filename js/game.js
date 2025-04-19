@@ -14,7 +14,7 @@ class Game {
             this.maze.startPos.x,
             this.maze.startPos.y,
             cellSize - 4, // Slightly smaller than cell size
-            4, // Speed
+            1, // Speed
             this.maze
         );
         
